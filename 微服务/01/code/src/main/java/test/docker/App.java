@@ -26,6 +26,9 @@ public class App {
 	@Autowired
 	StringRedisTemplate stringRedisTemplate;
 	
+	@Autowired
+	AppService appService;
+	
 	
 	public static void main(String[] args) {
 		SpringApplication.run(App.class, args);
@@ -72,7 +75,20 @@ public class App {
 		return users;
 	}
 	
-	
+	@PostMapping("/user/muti")
+	public String muti() {
+		new Thread(()->{appService.save("XSH"+1, "INFO"+1,1);}) .start();
+		new Thread(()->{appService.save("XSH"+2, "INFO"+2,2);}) .start();
+		new Thread(()->{appService.save("XSH"+3, "INFO"+3,3);}) .start();
+		new Thread(()->{appService.save("XSH"+4, "INFO"+4,4);}) .start();
+		new Thread(()->{appService.save("XSH"+5, "INFO"+5,5);}) .start();
+		new Thread(()->{appService.save("XSH"+6, "INFO"+6,6);}) .start();
+		new Thread(()->{appService.save("XSH"+7, "INFO"+7,7);}) .start();
+		new Thread(()->{appService.save("XSH"+8, "INFO"+8,8);}) .start();
+		new Thread(()->{appService.save("XSH"+9, "INFO"+9,9);}) .start();
+		new Thread(()->{appService.save("XSH"+10, "INFO"+10,10);}) .start();
+		return "ok";
+	}
 }
 
 class User{

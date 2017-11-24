@@ -4,9 +4,11 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
+import org.junit.Test;
+
 public class Salary {
 	
-	String name;
+	String name; 
 	
 	int baseSalary;
 	
@@ -67,32 +69,9 @@ public class Salary {
 	}
 	
 	public void getInfo() {
-		System.out.println(String.format("name=%s total=%d", name,baseSalary * 13 + bonus));
+		System.out.println(String.format("%s:%d", name,baseSalary * 13 + bonus));
 	}
 	
-	public static void main(String[] args) {
-		Salary[] salaries = new Salary[10000];
-		Arrays.setAll(salaries, (n)->{
-			Salary salary = new Salary(getRandomString(), get5_500W(), get0_10W());
-			return salary;
-		});
-		System.out.println(salaries);
-		Arrays.sort(salaries,new Comparator<Salary>() {
-			@Override
-			public int compare(Salary o1, Salary o2) {
-				int oS1 = o1.getTotal();
-				int oS2 = o2.getTotal();
-				if (oS1 == oS2) {
-					return 0;
-				}
-				if (oS1 > oS2) {
-					return 1;
-				}
-				return -1;
-			}
-		});
-		Stream.of(salaries).forEach(Salary::getInfo);
-	}
 	
 	
 }
