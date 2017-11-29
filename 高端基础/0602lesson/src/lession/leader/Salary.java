@@ -41,7 +41,7 @@ public class Salary {
 	
 	
 	public static String getRandomString() {
-	    String KeyString = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	    String KeyString = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	    StringBuffer sb = new StringBuffer();
 	    int len = KeyString.length();
 	    for (int i = 0; i < 4; i++) {
@@ -51,25 +51,19 @@ public class Salary {
 	}
 	
 	public static int get5_500W() {
-		return (int) (5+Math.random()*4999995);
+		return (int) (5+Math.random()*495);
 	}
 	
 	public static int get0_10W() {
-		return (int)( Math.random()*100000);
+		return (int)( Math.random()*10);
 	}
 	
 	public int getTotal() {
 		return baseSalary * 13 + bonus;
 	}
 	
-	public String info() {
-		return String.format("%s,%d,%d", name,getTotal(),1);
-	}
-	
 	public void getInfo() {
 		System.out.println(String.format("%s:%d", name,baseSalary * 13 + bonus));
 	}
-	
-	
 	
 }

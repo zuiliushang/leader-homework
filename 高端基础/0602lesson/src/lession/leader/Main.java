@@ -1,21 +1,32 @@
 package lession.leader;
 
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.stream.Stream;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 
 public class Main {
+	
+	private final static int fileSize = 1000000;
 	
 	@Test
 	public void test01() throws UnsupportedEncodingException {
@@ -70,15 +81,96 @@ public class Main {
 	
 	//写文件
 	@Test
-	public void test04() throws Exception{
+	public void test04(){
 		File file = new File("e://salaries.txt");
 		if (!file.exists()) {
-			file.createNewFile();
+			try {
+				file.createNewFile();
+			} catch (IOException e) {
+				throw new RuntimeException();
+			}
 		}
-		FileWriter r = new FileWriter(file);
-		PrintWriter writer = new PrintWriter(r);
-		writer.println();
-		
+		try (
+			 PrintWriter writer = new PrintWriter(new FileWriter(file));
+			 BufferedReader reader = new BufferedReader(new InputStreamReader(file.toPath().getFileSystem().provider().newInputStream(file.toPath())));
+			){
+			Salary[] salaries = new Salary[fileSize];
+			Arrays.setAll(salaries, (n)->{
+				return new Salary(Salary.getRandomString(), Salary.get5_500W(), Salary.get0_10W());
+			});
+			Arrays
+				.stream(salaries)
+				.parallel()
+				.forEach(s->writer.println(String.format("%s,%d,%d", s.getName(),s.getBaseSalary(),s.getBonus())));
+			writer.flush();
+			ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
+			AtomicBoolean sign = new AtomicBoolean(true);
+			List<Statistics> statistics = new ArrayList<>();
+			List<Salary> s = new ArrayList<>();
+			new Thread(()->{for(;;) {
+				try {
+					String row = reader.readLine();
+					if (row == null) {
+						sign.set(false);
+						break;
+					}
+					queue.add(row);
+				} catch (IOException e) {
+				}
+			}}).start();
+			while(sign.get()) {
+				if (queue.isEmpty()) {
+					continue;
+				}
+				String row = queue.poll();
+				String[] tmps = row.split(",");
+				s.add(new Salary(tmps[0], Integer.parseInt(tmps[1]), Integer.parseInt(tmps[2])));
+			};
+			//s.stream().collect(Collectors.groupingBy());
+			System.out.println("end...");
+		} catch (IOException e) {
+			
+		} 
 	}
 	
+	class Statistics {
+		
+		private String name;
+
+		private int salary;
+		
+		private int sum;
+
+		public Statistics(String name, int salary, int sum) {
+			super();
+			this.name = name;
+			this.salary = salary;
+			this.sum = sum;
+		}
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public int getSalary() {
+			return salary;
+		}
+
+		public void setSalary(int salary) {
+			this.salary = salary;
+		}
+
+		public int getSum() {
+			return sum;
+		}
+
+		public void setSum(int sum) {
+			this.sum = sum;
+		}
+		
+	}
 }
