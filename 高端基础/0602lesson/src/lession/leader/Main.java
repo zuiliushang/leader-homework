@@ -10,6 +10,12 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -23,6 +29,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import org.junit.Test;
+
+import sun.nio.ch.FileChannelImpl;
 
 public class Main {
 	
@@ -82,6 +90,7 @@ public class Main {
 	//写文件
 	@Test
 	public void test04(){
+		long start = System.currentTimeMillis();
 		File file = new File("e://salaries.txt");
 		if (!file.exists()) {
 			try {
@@ -92,7 +101,9 @@ public class Main {
 		}
 		try (
 			 PrintWriter writer = new PrintWriter(new FileWriter(file));
-			 BufferedReader reader = new BufferedReader(new InputStreamReader(file.toPath().getFileSystem().provider().newInputStream(file.toPath())));
+			 BufferedReader reader = new BufferedReader
+					 (new InputStreamReader(file.toPath().getFileSystem()
+							 .provider().newInputStream(file.toPath())));
 			){
 			Salary[] salaries = new Salary[fileSize];
 			Arrays.setAll(salaries, (n)->{
@@ -107,7 +118,7 @@ public class Main {
 			AtomicBoolean sign = new AtomicBoolean(true);
 			List<Statistics> statistics = new ArrayList<>();
 			List<Salary> s = new ArrayList<>();
-			new Thread(()->{for(;;) {
+			new Thread(()->{for(;;) {// producer thread
 				try {
 					String row = reader.readLine();
 					if (row == null) {
@@ -118,7 +129,7 @@ public class Main {
 				} catch (IOException e) {
 				}
 			}}).start();
-			while(sign.get()) {
+			while(sign.get()) {// consumer thread
 				if (queue.isEmpty()) {
 					continue;
 				}
@@ -127,11 +138,55 @@ public class Main {
 				s.add(new Salary(tmps[0], Integer.parseInt(tmps[1]), Integer.parseInt(tmps[2])));
 			};
 			//s.stream().collect(Collectors.groupingBy());
-			System.out.println("end...");
+			s.stream()
+				.collect(Collectors.groupingBy(rs -> rs.getName().substring(0, 2)))
+				.entrySet()
+				.stream()
+				.forEach(entry->{
+				int salary = entry.getValue().stream().reduce(0,((t1,t2)->(t1+t2.getTotal())),(total1,total2)->total1+total2);
+				statistics.add(new Statistics(entry.getKey(), salary, entry.getValue().size()));
+			});
+			statistics
+				.stream()
+				.sorted((s1,s2)->{
+					if(s1.getSalary() > s2.getSalary())
+						return -1;
+					if(s1.getSalary() < s2.getSalary())
+						return 1;
+					return 0;
+				})
+				.limit(10)
+				.forEach(row->{
+					System.out.println(String.format("%s,%d万,%d人", row.getName(),row.getSalary(),row.getSum()));
+				});;
+			System.out.println(System.currentTimeMillis()-start);
 		} catch (IOException e) {
 			
 		} 
 	}
+	
+	@Test
+	public void test05() {
+		File file = new File("e://salaries.txt");
+		if (!file.exists()) {
+			try {
+				file.createNewFile();
+			} catch (IOException e) {
+				throw new RuntimeException();
+			}
+		}
+		try (FileChannel fileChannel = FileChannelImpl.open(file.toPath());){
+			
+			ByteBuffer dst = ByteBuffer.allocate(1000);
+			
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
 	
 	class Statistics {
 		

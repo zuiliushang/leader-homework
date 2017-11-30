@@ -18,7 +18,7 @@ public class lesson1 {
 	@Test
 	public void test02() {
 		int a = -1024;
-		System.out.println(a >> 1);
+		System.out.println((a >> 1));
 		System.out.println(a >>> 1);
 	}
 
