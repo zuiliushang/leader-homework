@@ -3,12 +3,14 @@ package lession.leader;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -27,8 +29,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.Test;
+
+import com.sun.org.apache.bcel.internal.generic.NEW;
 
 import sun.nio.ch.FileChannelImpl;
 
@@ -101,43 +106,25 @@ public class Main {
 		}
 		try (
 			 PrintWriter writer = new PrintWriter(new FileWriter(file));
-			 BufferedReader reader = new BufferedReader
-					 (new InputStreamReader(file.toPath().getFileSystem()
-							 .provider().newInputStream(file.toPath())));
 			){
 			Salary[] salaries = new Salary[fileSize];
 			Arrays.setAll(salaries, (n)->{
 				return new Salary(Salary.getRandomString(), Salary.get5_500W(), Salary.get0_10W());
 			});
+			
 			Arrays
 				.stream(salaries)
 				.parallel()
 				.forEach(s->writer.println(String.format("%s,%d,%d", s.getName(),s.getBaseSalary(),s.getBonus())));
 			writer.flush();
-			ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
-			AtomicBoolean sign = new AtomicBoolean(true);
 			List<Statistics> statistics = new ArrayList<>();
 			List<Salary> s = new ArrayList<>();
-			new Thread(()->{for(;;) {// producer thread
-				try {
-					String row = reader.readLine();
-					if (row == null) {
-						sign.set(false);
-						break;
-					}
-					queue.add(row);
-				} catch (IOException e) {
-				}
-			}}).start();
-			while(sign.get()) {// consumer thread
-				if (queue.isEmpty()) {
-					continue;
-				}
-				String row = queue.poll();
+			Files.readAllLines(file.toPath(), Charset.forName("utf-8")).forEach(row->{
 				String[] tmps = row.split(",");
 				s.add(new Salary(tmps[0], Integer.parseInt(tmps[1]), Integer.parseInt(tmps[2])));
-			};
+			});;
 			//s.stream().collect(Collectors.groupingBy());
+			System.out.println(s.size());
 			s.stream()
 				.collect(Collectors.groupingBy(rs -> rs.getName().substring(0, 2)))
 				.entrySet()
@@ -166,25 +153,77 @@ public class Main {
 	}
 	
 	@Test
-	public void test05() {
-		File file = new File("e://salaries.txt");
-		if (!file.exists()) {
-			try {
-				file.createNewFile();
-			} catch (IOException e) {
-				throw new RuntimeException();
+	public void test07() throws FileNotFoundException {
+		
+		Salary[] salaries = new Salary[fileSize];
+		try (RandomAccessFile file = new RandomAccessFile("e://salaries_bs.txt","rw");
+				FileChannel fileChannel = file.getChannel()){
+			Arrays.setAll(salaries, (n)->{
+				return new Salary(Salary.getRandomString(), Salary.get5_500W(), Salary.get0_10W());
+			});
+			byte[] bs = Arrays
+				.stream(salaries)
+				.reduce((new StringBuffer()),((sb,total)->(sb.append(String.format("%s,%d,%d\n", total.getName(),total.getBaseSalary(),total.getBonus())))),(total1,total2)->total1=total2)
+				.toString()
+				.getBytes("utf-8");
+			ByteBuffer dst = ByteBuffer.wrap(bs);
+			while (dst.hasRemaining()) {
+				fileChannel.write(dst);
 			}
-		}
-		try (FileChannel fileChannel = FileChannelImpl.open(file.toPath());){
-			
-			ByteBuffer dst = ByteBuffer.allocate(1000);
-			
-			
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
+	}
+	
+	@Test
+	public void test08() throws FileNotFoundException, IOException {
+		long start = System.currentTimeMillis();
+		test07();
+		try (RandomAccessFile file = new RandomAccessFile("e://salaries_bs.txt","rw");
+				FileChannel fileChannel = file.getChannel()){
+			ByteBuffer dsf = ByteBuffer.allocate(1024);
+			List<Statistics> statistics = new ArrayList<>();
+			List<Salary> s = new ArrayList<>();
+			StringBuffer stringBuffer = new StringBuffer();
+			int bytesRead = fileChannel.read(dsf);  
+	        while (bytesRead != -1) {  
+	            dsf.flip();  
+	            stringBuffer.append(Charset.forName("utf-8").decode(dsf));
+	            dsf.clear();  
+	            bytesRead = fileChannel.read(dsf);  
+	        }
+	        Stream.of(stringBuffer.toString().split("\n")).forEach(n->{
+	        	String[] tmps = n.split(",");
+	        	if (tmps.length==3) {
+	        		s.add(new Salary(tmps[0], Integer.parseInt(tmps[1]), Integer.parseInt(tmps[2])));
+				}
+	        	});
+	        s.stream()
+			.collect(Collectors.groupingBy(rs -> rs.getName().substring(0, 2)))
+			.entrySet()
+			.stream()
+			.forEach(entry->{
+			int salary = entry.getValue().stream().reduce(0,((t1,t2)->(t1+t2.getTotal())),(total1,total2)->total1+total2);
+			statistics.add(new Statistics(entry.getKey(), salary, entry.getValue().size()));
+		});
+	    System.out.println(s.size());
+		statistics
+			.stream()
+			.sorted((s1,s2)->{
+				if(s1.getSalary() > s2.getSalary())
+					return -1;
+				if(s1.getSalary() < s2.getSalary())
+					return 1;
+				return 0;
+			})
+			.limit(10)
+			.forEach(row->{
+				System.out.println(String.format("%s,%d万,%d人", row.getName(),row.getSalary(),row.getSum()));
+			});;
+		}
+		System.out.println(System.currentTimeMillis() - start);
 	}
 	
 	
